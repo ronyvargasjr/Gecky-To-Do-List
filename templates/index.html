@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gecky</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       LEFT SIDEBAR — workspace list
+  ════════════════════════════════════════════════════════════════════════ -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <span class="logo">🦎 Gecky</span>
+      <button id="toggle-sidebar" title="Collapse sidebar" aria-label="Toggle sidebar">◀</button>
+    </div>
+
+    <div class="sidebar-content">
+      <button id="new-workspace-btn" class="btn-primary sidebar-btn">+ New Workspace</button>
+
+      <ul id="workspace-list" aria-label="Workspaces">
+        {% for ws in workspaces %}
+        <li class="workspace-item {% if active_workspace and ws.id == active_workspace.id %}active{% endif %}"
+            data-workspace-id="{{ ws.id }}">
+          <span class="workspace-name">{{ ws.name }}</span>
+          <button class="delete-workspace-btn" data-id="{{ ws.id }}" title="Delete workspace" aria-label="Delete {{ ws.name }}">✕</button>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       MAIN BOARD — draggable geck cards
+  ════════════════════════════════════════════════════════════════════════ -->
+  <main id="board-wrapper">
+    <header class="board-header">
+      <h1 id="workspace-title">
+        {{ active_workspace.name if active_workspace else 'No Workspace' }}
+      </h1>
+      <button id="add-geck-btn" class="btn-primary">+ Geck</button>
+    </header>
+
+    <!-- Absolute-positioned canvas; gecks float freely here -->
+    <div id="board" role="main" aria-label="Task board">
+      {% for geck in gecks %}
+      <div class="geck"
+           id="geck-{{ geck.id }}"
+           data-id="{{ geck.id }}"
+           style="left: {{ geck.pos_x }}px; top: {{ geck.pos_y }}px; background: {{ geck.color }};"
+           role="article"
+           aria-label="Task: {{ geck.title }}">
+        <div class="geck-header">
+          <span class="geck-title">{{ geck.title }}</span>
+          <button class="geck-delete" data-id="{{ geck.id }}" title="Delete geck" aria-label="Delete geck">✕</button>
+        </div>
+        <div class="geck-body">
+          <p class="geck-description">{{ geck.description }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       NEW GECK MODAL
+  ════════════════════════════════════════════════════════════════════════ -->
+  <div id="geck-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-heading">
+    <div class="modal-card">
+      <h3 id="modal-heading">New Geck</h3>
+      <input  id="geck-title-input"
+              type="text"
+              placeholder="Title"
+              maxlength="200"
+              autocomplete="off"
+              aria-label="Geck title" />
+      <textarea id="geck-desc-input"
+                placeholder="Description (optional)"
+                rows="3"
+                aria-label="Geck description"></textarea>
+      <div class="modal-actions">
+        <button id="cancel-geck-btn" class="btn-secondary">Cancel</button>
+        <button id="save-geck-btn"   class="btn-primary">Add Geck</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       AI PANEL — bottom centre
+  ════════════════════════════════════════════════════════════════════════ -->
+  <div id="ai-panel" role="complementary" aria-label="AI task generator">
+    <div class="ai-panel-inner">
+      <input  type="text"
+              id="ai-prompt"
+              placeholder='Try "Generate a morning routine" …'
+              autocomplete="off"
+              aria-label="AI prompt" />
+      <button id="ask-gecky-btn" class="btn-ai">Ask Gecky</button>
+    </div>
+  </div>
+
+  <!-- Toast container (injected by JS) -->
+  <div id="toast-container" aria-live="polite"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       BOOTSTRAP DATA — passed from Flask to JS
+  ════════════════════════════════════════════════════════════════════════ -->
+  <script>
+    window.GECKY = {
+      activeWorkspaceId : {{ active_workspace.id if active_workspace else 'null' }},
+      workspaces        : {{ workspaces_json | safe }},
+      gecks             : {{ gecks_json      | safe }}
+    };
+  </script>
+
+  <!-- drag.js must load before main.js so makeDraggable() is available -->
+  <script src="{{ url_for('static', filename='js/drag.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

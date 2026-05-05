@@ -1,0 +1,498 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   styles.css — Gecky
+   Layout: fixed sidebar | flex board | fixed AI panel at bottom
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Reset ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Design tokens ──────────────────────────────────────────────────────────── */
+:root {
+  --sidebar-width           : 260px;
+  --sidebar-collapsed-width : 52px;
+  --ai-panel-height         : 72px;
+  --board-header-height     : 58px;
+
+  /* Palette — dark sidebar, light board */
+  --c-sidebar-bg     : #1e1e2e;
+  --c-sidebar-text   : #cdd6f4;
+  --c-sidebar-hover  : #313244;
+  --c-sidebar-active : #45475a;
+  --c-accent         : #89b4fa;
+  --c-danger         : #f38ba8;
+  --c-success        : #a6e3a1;
+  --c-board-bg       : #f0f2f5;
+  --c-header-bg      : #ffffff;
+  --c-border         : #e2e8f0;
+
+  /* Geck colours */
+  --c-geck-yellow  : #fef08a;
+  --c-geck-green   : #bbf7d0;
+  --c-geck-blue    : #bae6fd;
+  --c-geck-pink    : #fbcfe8;
+  --c-geck-purple  : #e9d5ff;
+
+  --shadow-geck    : 2px 4px 14px rgba(0, 0, 0, 0.13);
+  --shadow-modal   : 0 8px 32px rgba(0, 0, 0, 0.25);
+  --radius         : 10px;
+  --transition     : 0.22s ease;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────────── */
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--c-board-bg);
+  color: #1e293b;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--c-sidebar-bg);
+  color: var(--c-sidebar-text);
+  display: flex;
+  flex-direction: column;
+  transition: width var(--transition), min-width var(--transition);
+  overflow: hidden;
+  z-index: 200;
+  flex-shrink: 0;
+}
+
+/* Collapsed state (toggled via .sidebar-collapsed on <body>) */
+body.sidebar-collapsed .sidebar {
+  width: var(--sidebar-collapsed-width);
+  min-width: var(--sidebar-collapsed-width);
+}
+
+/* Hide text content when collapsed */
+body.sidebar-collapsed .sidebar-content {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.sidebar-collapsed .logo {
+  opacity: 0;
+  width: 0;
+}
+
+/* ── Sidebar header ──────────────────────────────────────────────────────── */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 14px;
+  border-bottom: 1px solid #313244;
+  flex-shrink: 0;
+}
+
+.logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity var(--transition), width var(--transition);
+}
+
+#toggle-sidebar {
+  background: none;
+  border: none;
+  color: var(--c-sidebar-text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 5px 7px;
+  border-radius: 6px;
+  transition: background var(--transition);
+  flex-shrink: 0;
+}
+
+#toggle-sidebar:hover { background: var(--c-sidebar-hover); }
+
+/* ── Sidebar content ─────────────────────────────────────────────────────── */
+.sidebar-content {
+  flex: 1;
+  padding: 14px 12px;
+  overflow-y: auto;
+  transition: opacity var(--transition);
+}
+
+.sidebar-btn {
+  width: 100%;
+  text-align: left;
+}
+
+/* ── Workspace list ──────────────────────────────────────────────────────── */
+#workspace-list {
+  list-style: none;
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.workspace-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background var(--transition);
+  gap: 6px;
+}
+
+.workspace-item:hover  { background: var(--c-sidebar-hover); }
+.workspace-item.active { background: var(--c-sidebar-active); }
+
+.workspace-name {
+  flex: 1;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.delete-workspace-btn {
+  background: none;
+  border: none;
+  color: var(--c-danger);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+
+.workspace-item:hover .delete-workspace-btn { opacity: 1; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BOARD WRAPPER
+   ═══════════════════════════════════════════════════════════════════════════ */
+#board-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Board header ────────────────────────────────────────────────────────── */
+.board-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: var(--board-header-height);
+  background: var(--c-header-bg);
+  border-bottom: 1px solid var(--c-border);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.board-header h1 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Board canvas ─────────────────────────────────────────────────────────── */
+#board {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  /* Reserve space for the fixed AI panel */
+  padding-bottom: calc(var(--ai-panel-height) + 20px);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GECK CARDS  (sticky-note style)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.geck {
+  position: absolute;
+  width: 210px;
+  min-height: 120px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-geck);
+  padding: 13px;
+  cursor: move;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow var(--transition);
+  /* Slight top-right fold effect */
+  background-image: linear-gradient(135deg, transparent 90%, rgba(0,0,0,0.07) 90%);
+}
+
+.geck:hover {
+  box-shadow: 4px 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.geck.dragging {
+  box-shadow: 8px 14px 28px rgba(0, 0, 0, 0.28);
+  z-index: 1000;
+  opacity: 0.9;
+  cursor: grabbing;
+}
+
+.geck-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.geck-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1e293b;
+  word-break: break-word;
+  flex: 1;
+  line-height: 1.35;
+}
+
+.geck-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  font-size: 0.75rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.geck:hover .geck-delete { opacity: 1; }
+.geck-delete:hover        { color: #ef4444; }
+
+.geck-description {
+  font-size: 0.8rem;
+  color: #334155;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AI PANEL  (fixed, bottom centre of board area)
+   ═══════════════════════════════════════════════════════════════════════════ */
+#ai-panel {
+  position: fixed;
+  bottom: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: var(--ai-panel-height);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  z-index: 100;
+  transition: left var(--transition);
+}
+
+body.sidebar-collapsed #ai-panel {
+  left: var(--sidebar-collapsed-width);
+}
+
+.ai-panel-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 640px;
+}
+
+#ai-prompt {
+  flex: 1;
+  padding: 10px 18px;
+  border: 1.5px solid var(--c-border);
+  border-radius: 50px;
+  font-size: 0.875rem;
+  outline: none;
+  background: #fff;
+  transition: border-color var(--transition);
+}
+
+#ai-prompt:focus { border-color: var(--c-accent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MODAL — new geck dialog
+   ═══════════════════════════════════════════════════════════════════════════ */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  animation: fadeIn 0.15s ease;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 28px 24px 20px;
+  width: 360px;
+  max-width: 92vw;
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: slideUp 0.2s ease;
+}
+
+.modal-card h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.modal-card input[type="text"],
+.modal-card textarea {
+  width: 100%;
+  padding: 9px 13px;
+  border: 1.5px solid var(--c-border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--transition);
+}
+
+.modal-card input[type="text"]:focus,
+.modal-card textarea:focus {
+  border-color: var(--c-accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUTTONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+.btn-primary {
+  background: var(--c-accent);
+  color: #1e1e2e;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: filter var(--transition);
+  white-space: nowrap;
+}
+
+.btn-primary:hover { filter: brightness(1.1); }
+
+.btn-secondary {
+  background: transparent;
+  color: #64748b;
+  border: 1.5px solid var(--c-border);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: background var(--transition);
+}
+
+.btn-secondary:hover { background: #f1f5f9; }
+
+.btn-ai {
+  background: linear-gradient(135deg, #89b4fa, #cba6f7);
+  color: #1e1e2e;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.875rem;
+  transition: filter var(--transition), transform 0.1s;
+  white-space: nowrap;
+}
+
+.btn-ai:hover  { filter: brightness(1.08); }
+.btn-ai:active { transform: scale(0.97); }
+
+.btn-ai:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+#toast-container {
+  position: fixed;
+  bottom: calc(var(--ai-panel-height) + 14px);
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.toast {
+  background: #1e1e2e;
+  color: #cdd6f4;
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 0.83rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  border-left: 3px solid transparent;
+  animation: slideIn 0.25s ease;
+}
+
+.toast.success { border-left-color: var(--c-success); }
+.toast.error   { border-left-color: var(--c-danger); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(18px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
