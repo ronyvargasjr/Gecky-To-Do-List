@@ -227,8 +227,8 @@ body.sidebar-collapsed .logo {
    ═══════════════════════════════════════════════════════════════════════════ */
 .geck {
   position: absolute;
-  width: 210px;
-  min-height: 120px;
+  width: 230px;
+  /* height is auto — card grows to fit its todo list */
   border-radius: var(--radius);
   box-shadow: var(--shadow-geck);
   padding: 13px;
@@ -236,7 +236,7 @@ body.sidebar-collapsed .logo {
   user-select: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   transition: box-shadow var(--transition);
   /* Slight top-right fold effect */
   background-image: linear-gradient(135deg, transparent 90%, rgba(0,0,0,0.07) 90%);
@@ -267,6 +267,23 @@ body.sidebar-collapsed .logo {
   word-break: break-word;
   flex: 1;
   line-height: 1.35;
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: -1px -3px;
+  outline: none;
+  min-width: 0;
+}
+
+/* Highlight title when actively being edited */
+.geck-title:focus {
+  background: rgba(0, 0, 0, 0.06);
+  cursor: text;
+}
+
+.geck-title:empty::before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  font-weight: 400;
 }
 
 .geck-delete {
@@ -286,11 +303,102 @@ body.sidebar-collapsed .logo {
 .geck:hover .geck-delete { opacity: 1; }
 .geck-delete:hover        { color: #ef4444; }
 
-.geck-description {
+/* ── Todo list ─────────────────────────────────────────────────────────────────── */
+.geck-todos {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  border-radius: 5px;
+  padding: 3px 4px;
+  transition: background var(--transition);
+}
+
+.todo-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.todo-check {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #334155;
+  cursor: pointer;
+  width: 13px;
+  height: 13px;
+}
+
+.todo-text {
+  flex: 1;
   font-size: 0.8rem;
   color: #334155;
-  word-break: break-word;
   line-height: 1.45;
+  word-break: break-word;
+  border-radius: 3px;
+  padding: 0 2px;
+  margin: 0 -2px;
+  outline: none;
+  min-width: 0;
+}
+
+.todo-text:focus {
+  background: rgba(0, 0, 0, 0.06);
+  cursor: text;
+}
+
+/* Strike-through + muted colour for completed items */
+.todo-text.todo-done {
+  text-decoration: line-through;
+  color: #94a3b8;
+}
+
+.todo-delete {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 0.65rem;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+  flex-shrink: 0;
+  margin-top: 2px;
+  line-height: 1;
+}
+
+.todo-item:hover .todo-delete { opacity: 1; }
+.todo-delete:hover             { color: #ef4444; }
+
+/* ── Add-todo input at the bottom of a geck ───────────────────────────── */
+.geck-add-todo {
+  border-top: 1px dashed rgba(0, 0, 0, 0.12);
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.todo-new-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.78rem;
+  color: #475569;
+  font-family: inherit;
+  padding: 2px 2px;
+  border-radius: 3px;
+}
+
+.todo-new-input::placeholder { color: #94a3b8; }
+
+.todo-new-input:focus {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

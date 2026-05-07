@@ -24,8 +24,8 @@ function makeDraggable(el) {
 function _onDragStart(e) {
   // Only handle primary (left) mouse button
   if (e.button !== 0) return;
-  // Don't hijack clicks on interactive children (delete button, etc.)
-  if (e.target.closest('button, input, textarea')) return;
+  // Don't hijack clicks on interactive children or editable text spans
+  if (e.target.closest('button, input, textarea, [contenteditable="true"]')) return;
 
   const el    = e.currentTarget;
   const board = document.getElementById('board');

@@ -13,12 +13,17 @@ Endpoints:
     PUT    /api/gecks/<id>
     DELETE /api/gecks/<id>
 
+  Todos
+    POST   /api/gecks/<id>/todos
+    PUT    /api/todos/<id>
+    DELETE /api/todos/<id>
+
   AI
     POST   /api/ai/generate
 """
 from flask import Blueprint, abort, jsonify, request
 
-from models.database import Geck, Workspace, db
+from models.database import Geck, Todo, Workspace, db
 from services.ai_agent import generate_tasks
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
@@ -70,7 +75,6 @@ def create_geck():
     geck = Geck(
         workspace_id=workspace_id,
         title=title,
-        description=str(data.get("description", "")),
         pos_x=int(data.get("pos_x", 50)),
         pos_y=int(data.get("pos_y", 50)),
         color=str(data.get("color", "#fef08a")),
@@ -98,9 +102,6 @@ def update_geck(geck_id):
             return jsonify({"error": "title cannot be empty"}), 400
         geck.title = title
 
-    if "description" in data:
-        geck.description = str(data["description"])
-
     if "pos_x" in data:
         geck.pos_x = int(data["pos_x"])
 
@@ -120,6 +121,49 @@ def delete_geck(geck_id):
     db.session.delete(geck)
     db.session.commit()
     return jsonify({"message": "Geck deleted"}), 200
+
+
+# ── Todos ────────────────────────────────────────────────────────────────────────────────
+
+@api_bp.route("/gecks/<int:geck_id>/todos", methods=["POST"])
+def create_todo(geck_id):
+    db.get_or_404(Geck, geck_id)
+    data = request.get_json(silent=True) or {}
+    text = str(data.get("text", "")).strip()
+    if not text:
+        return jsonify({"error": "text is required"}), 400
+
+    position = Todo.query.filter_by(geck_id=geck_id).count()
+    todo = Todo(geck_id=geck_id, text=text, completed=False, position=position)
+    db.session.add(todo)
+    db.session.commit()
+    return jsonify(todo.to_dict()), 201
+
+
+@api_bp.route("/todos/<int:todo_id>", methods=["PUT"])
+def update_todo(todo_id):
+    todo = db.get_or_404(Todo, todo_id)
+    data = request.get_json(silent=True) or {}
+
+    if "text" in data:
+        text = str(data["text"]).strip()
+        if not text:
+            return jsonify({"error": "text cannot be empty"}), 400
+        todo.text = text
+
+    if "completed" in data:
+        todo.completed = bool(data["completed"])
+
+    db.session.commit()
+    return jsonify(todo.to_dict())
+
+
+@api_bp.route("/todos/<int:todo_id>", methods=["DELETE"])
+def delete_todo(todo_id):
+    todo = db.get_or_404(Todo, todo_id)
+    db.session.delete(todo)
+    db.session.commit()
+    return jsonify({"message": "Todo deleted"}), 200
 
 
 # ── AI ────────────────────────────────────────────────────────────────────────

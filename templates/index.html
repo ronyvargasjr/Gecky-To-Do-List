@@ -43,25 +43,8 @@
       <button id="add-geck-btn" class="btn-primary">+ Geck</button>
     </header>
 
-    <!-- Absolute-positioned canvas; gecks float freely here -->
-    <div id="board" role="main" aria-label="Task board">
-      {% for geck in gecks %}
-      <div class="geck"
-           id="geck-{{ geck.id }}"
-           data-id="{{ geck.id }}"
-           style="left: {{ geck.pos_x }}px; top: {{ geck.pos_y }}px; background: {{ geck.color }};"
-           role="article"
-           aria-label="Task: {{ geck.title }}">
-        <div class="geck-header">
-          <span class="geck-title">{{ geck.title }}</span>
-          <button class="geck-delete" data-id="{{ geck.id }}" title="Delete geck" aria-label="Delete geck">✕</button>
-        </div>
-        <div class="geck-body">
-          <p class="geck-description">{{ geck.description }}</p>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
+    <!-- Absolute-positioned canvas; gecks rendered by main.js from window.GECKY -->
+    <div id="board" role="main" aria-label="Task board"></div>
   </main>
 
   <!-- ═══════════════════════════════════════════════════════════════════════
@@ -76,10 +59,6 @@
               maxlength="200"
               autocomplete="off"
               aria-label="Geck title" />
-      <textarea id="geck-desc-input"
-                placeholder="Description (optional)"
-                rows="3"
-                aria-label="Geck description"></textarea>
       <div class="modal-actions">
         <button id="cancel-geck-btn" class="btn-secondary">Cancel</button>
         <button id="save-geck-btn"   class="btn-primary">Add Geck</button>

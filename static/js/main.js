@@ -4,6 +4,7 @@
  * Responsibilities:
  *   • Sidebar: toggle collapse, create / switch / delete workspaces
  *   • Board:   open modal, create / render / delete gecks
+ *   • Gecks:   inline-editable title, multiple todos (add / check / edit / delete)
  *   • AI panel: send prompt to /api/ai/generate, render returned gecks
  *
  * Depends on:  drag.js  (must be loaded first — provides makeDraggable)
@@ -16,7 +17,6 @@
 let activeWorkspaceId = window.GECKY?.activeWorkspaceId ?? null;
 
 // ── DOM references ────────────────────────────────────────────────────────────
-const sidebar          = document.getElementById('sidebar');
 const toggleSidebarBtn = document.getElementById('toggle-sidebar');
 const workspaceList    = document.getElementById('workspace-list');
 const newWorkspaceBtn  = document.getElementById('new-workspace-btn');
@@ -27,7 +27,6 @@ const addGeckBtn       = document.getElementById('add-geck-btn');
 
 const geckModal        = document.getElementById('geck-modal');
 const geckTitleInput   = document.getElementById('geck-title-input');
-const geckDescInput    = document.getElementById('geck-desc-input');
 const saveGeckBtn      = document.getElementById('save-geck-btn');
 const cancelGeckBtn    = document.getElementById('cancel-geck-btn');
 
@@ -41,8 +40,10 @@ document.addEventListener('DOMContentLoaded', () => {
   _bindModal();
   _bindAiPanel();
 
-  // Make gecks that were server-rendered draggable
-  document.querySelectorAll('.geck').forEach(makeDraggable);
+  // Render gecks from the server-injected bootstrap data
+  if (Array.isArray(window.GECKY?.gecks)) {
+    window.GECKY.gecks.forEach(renderGeck);
+  }
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -184,21 +185,20 @@ function _bindBoard() {
 }
 
 /** Create a geck via the API and render it on the board. */
-async function createGeck(title, description = '', posX = null, posY = null) {
+async function createGeck(title, posX = null, posY = null) {
   const existing = board.querySelectorAll('.geck');
-  const x = posX ?? (50 + (existing.length % 4) * 230);
-  const y = posY ?? (50 + Math.floor(existing.length / 4) * 200);
+  const x = posX ?? (50 + (existing.length % 4) * 260);
+  const y = posY ?? (50 + Math.floor(existing.length / 4) * 220);
 
   try {
     const res = await fetch('/api/gecks', {
       method  : 'POST',
       headers : { 'Content-Type': 'application/json' },
       body    : JSON.stringify({
-        workspace_id: activeWorkspaceId,
+        workspace_id : activeWorkspaceId,
         title,
-        description,
-        pos_x: x,
-        pos_y: y,
+        pos_x        : x,
+        pos_y        : y,
       }),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -211,34 +211,210 @@ async function createGeck(title, description = '', posX = null, posY = null) {
   }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// GECK RENDERING
+// ═════════════════════════════════════════════════════════════════════════════
+
 /**
  * Build a geck DOM element, add it to the board, and make it draggable.
- * @param {{ id, title, description, pos_x, pos_y, color }} geck
+ * @param {{ id, title, todos, pos_x, pos_y, color }} geck
  */
 function renderGeck(geck) {
   const el = document.createElement('div');
-  el.className    = 'geck';
-  el.id           = `geck-${geck.id}`;
-  el.dataset.id   = geck.id;
-  el.style.left   = `${geck.pos_x}px`;
-  el.style.top    = `${geck.pos_y}px`;
+  el.className  = 'geck';
+  el.id         = `geck-${geck.id}`;
+  el.dataset.id = geck.id;
+  el.style.left = `${geck.pos_x}px`;
+  el.style.top  = `${geck.pos_y}px`;
   el.style.background = geck.color || '#fef08a';
   el.setAttribute('role', 'article');
   el.setAttribute('aria-label', `Task: ${geck.title}`);
 
+  const todosHTML = (geck.todos || []).map(_todoItemHTML).join('');
+
   el.innerHTML = `
     <div class="geck-header">
-      <span class="geck-title">${_esc(geck.title)}</span>
+      <span class="geck-title"
+            contenteditable="true"
+            data-original="${_esc(geck.title)}"
+            data-placeholder="Untitled"
+            spellcheck="false"
+            aria-label="Geck title">${_esc(geck.title)}</span>
       <button class="geck-delete" data-id="${geck.id}" title="Delete geck" aria-label="Delete geck">✕</button>
     </div>
-    <div class="geck-body">
-      <p class="geck-description">${_esc(geck.description || '')}</p>
+    <ul class="geck-todos" role="list">${todosHTML}</ul>
+    <div class="geck-add-todo">
+      <input type="text"
+             class="todo-new-input"
+             placeholder="+ Add to-do…"
+             autocomplete="off"
+             aria-label="Add to-do" />
     </div>
   `;
 
+  _bindGeckEvents(el, geck.id);
   board.appendChild(el);
   makeDraggable(el);
   return el;
+}
+
+/**
+ * Return the HTML string for a single todo <li>.
+ * @param {{ id, text, completed }} todo
+ */
+function _todoItemHTML(todo) {
+  const checked   = todo.completed ? 'checked' : '';
+  const doneClass = todo.completed ? ' todo-done' : '';
+  return `
+    <li class="todo-item" data-todo-id="${todo.id}">
+      <input type="checkbox" class="todo-check" ${checked} aria-label="Toggle to-do">
+      <span class="todo-text${doneClass}"
+            contenteditable="true"
+            data-original="${_esc(todo.text)}"
+            spellcheck="false"
+            aria-label="To-do text">${_esc(todo.text)}</span>
+      <button class="todo-delete" title="Delete to-do" aria-label="Delete to-do">✕</button>
+    </li>`;
+}
+
+/**
+ * Wire all interactive events for a single geck element.
+ * @param {HTMLElement}   el
+ * @param {number|string} geckId
+ */
+function _bindGeckEvents(el, geckId) {
+  const titleEl  = el.querySelector('.geck-title');
+  const todosUl  = el.querySelector('.geck-todos');
+  const newInput = el.querySelector('.todo-new-input');
+
+  // ── Inline title editing ──────────────────────────────────────────
+  titleEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter')  { e.preventDefault(); titleEl.blur(); }
+    if (e.key === 'Escape') { titleEl.textContent = titleEl.dataset.original; titleEl.blur(); }
+  });
+
+  titleEl.addEventListener('blur', async () => {
+    const newTitle = titleEl.textContent.trim();
+    if (!newTitle) { titleEl.textContent = titleEl.dataset.original; return; }
+    if (newTitle === titleEl.dataset.original) return;
+    try {
+      const res = await fetch(`/api/gecks/${geckId}`, {
+        method  : 'PUT',
+        headers : { 'Content-Type': 'application/json' },
+        body    : JSON.stringify({ title: newTitle }),
+      });
+      if (!res.ok) throw new Error();
+      titleEl.dataset.original = newTitle;
+    } catch {
+      titleEl.textContent = titleEl.dataset.original;
+      showToast('Could not save title', 'error');
+    }
+  });
+
+  // ── Add new todo on Enter (or blur-with-text) ───────────────────────
+  async function _submitNewTodo() {
+    const text = newInput.value.trim();
+    if (!text) return;
+    newInput.value = '';
+    await _createTodo(geckId, text, todosUl);
+  }
+
+  newInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); _submitNewTodo(); }
+  });
+  newInput.addEventListener('blur', _submitNewTodo);
+
+  // ── Delegate: checkbox toggle + todo delete ───────────────────────
+  todosUl.addEventListener('click', async (e) => {
+    const check = e.target.closest('.todo-check');
+    if (check) {
+      const item   = check.closest('.todo-item');
+      const todoId = item.dataset.todoId;
+      const done   = check.checked;
+      check.disabled = true;
+      try {
+        const res = await fetch(`/api/todos/${todoId}`, {
+          method  : 'PUT',
+          headers : { 'Content-Type': 'application/json' },
+          body    : JSON.stringify({ completed: done }),
+        });
+        if (!res.ok) throw new Error();
+        item.querySelector('.todo-text').classList.toggle('todo-done', done);
+      } catch {
+        check.checked = !done;
+        showToast('Could not update to-do', 'error');
+      } finally {
+        check.disabled = false;
+      }
+      return;
+    }
+
+    const delBtn = e.target.closest('.todo-delete');
+    if (delBtn) {
+      const item   = delBtn.closest('.todo-item');
+      const todoId = item.dataset.todoId;
+      try {
+        const res = await fetch(`/api/todos/${todoId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        item.remove();
+      } catch {
+        showToast('Could not delete to-do', 'error');
+      }
+    }
+  });
+
+  // ── Delegate: inline todo text editing ──────────────────────────
+  todosUl.addEventListener('keydown', (e) => {
+    const textEl = e.target.closest('.todo-text');
+    if (!textEl) return;
+    if (e.key === 'Enter')  { e.preventDefault(); textEl.blur(); }
+    if (e.key === 'Escape') { textEl.textContent = textEl.dataset.original; textEl.blur(); }
+  });
+
+  todosUl.addEventListener('focusout', async (e) => {
+    const textEl = e.target.closest('.todo-text');
+    if (!textEl) return;
+    const item    = textEl.closest('.todo-item');
+    const todoId  = item.dataset.todoId;
+    const newText = textEl.textContent.trim();
+
+    if (!newText) { textEl.textContent = textEl.dataset.original; return; }
+    if (newText === textEl.dataset.original) return;
+
+    try {
+      const res = await fetch(`/api/todos/${todoId}`, {
+        method  : 'PUT',
+        headers : { 'Content-Type': 'application/json' },
+        body    : JSON.stringify({ text: newText }),
+      });
+      if (!res.ok) throw new Error();
+      textEl.dataset.original = newText;
+    } catch {
+      textEl.textContent = textEl.dataset.original;
+      showToast('Could not save to-do', 'error');
+    }
+  });
+}
+
+/**
+ * POST a new todo to the server and append it to the todo list element.
+ * @param {number|string} geckId
+ * @param {string}        text
+ * @param {HTMLElement}   todosUl
+ */
+async function _createTodo(geckId, text, todosUl) {
+  try {
+    const res = await fetch(`/api/gecks/${geckId}/todos`, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify({ text }),
+    });
+    if (!res.ok) throw new Error();
+    const todo = await res.json();
+    todosUl.insertAdjacentHTML('beforeend', _todoItemHTML(todo));
+  } catch {
+    showToast('Could not add to-do', 'error');
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -267,8 +443,7 @@ function _bindModal() {
 }
 
 function _openModal() {
-  geckTitleInput.value  = '';
-  geckDescInput.value   = '';
+  geckTitleInput.value = '';
   geckModal.classList.remove('hidden');
   geckTitleInput.focus();
 }
@@ -283,9 +458,8 @@ async function _submitModal() {
     geckTitleInput.focus();
     return;
   }
-  const description = geckDescInput.value.trim();
   _closeModal();
-  await createGeck(title, description);
+  await createGeck(title);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
