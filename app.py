@@ -36,12 +36,13 @@ def create_app(config_class: type = Config) -> Flask:
 
 
 def _migrate_add_user_token() -> None:
-    """Add user_token column to workspaces if it doesn't exist (one-time migration)."""
-    from sqlalchemy import text
+    """Add user_token column to workspaces if it doesn't exist (database-agnostic)."""
+    from sqlalchemy import inspect as sa_inspect, text
 
-    with db.engine.connect() as conn:
-        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(workspaces)"))]
-        if "user_token" not in cols:
+    inspector = sa_inspect(db.engine)
+    cols = [c["name"] for c in inspector.get_columns("workspaces")]
+    if "user_token" not in cols:
+        with db.engine.connect() as conn:
             conn.execute(
                 text("ALTER TABLE workspaces ADD COLUMN user_token VARCHAR(36) NOT NULL DEFAULT ''")
             )

@@ -13,10 +13,15 @@ class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
 
     # ── Database ──────────────────────────────────────────────────────────────
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
+    _db_url = os.environ.get(
         "DATABASE_URL",
         f"sqlite:///{os.path.join(BASE_DIR, 'gecky.db')}",
     )
+    # Railway / Render / Heroku may supply the legacy postgres:// scheme;
+    # SQLAlchemy 1.4+ requires postgresql://
+    if _db_url.startswith("postgres://"):
+        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ── Debug ─────────────────────────────────────────────────────────────────
