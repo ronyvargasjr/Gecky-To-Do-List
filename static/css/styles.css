@@ -125,12 +125,27 @@ body.sidebar-collapsed .logo {
   flex: 1;
   padding: 14px 12px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   transition: opacity var(--transition);
 }
 
 .sidebar-btn {
   width: 100%;
   text-align: left;
+}
+
+/* ── Private link section ────────────────────────────────────────────────── */
+.private-link-section {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.private-link-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin: 0 0 6px 0;
 }
 
 /* ── Workspace list ──────────────────────────────────────────────────────── */

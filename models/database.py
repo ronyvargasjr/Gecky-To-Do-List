@@ -27,6 +27,7 @@ class Workspace(db.Model):
 
     id         = db.Column(db.Integer, primary_key=True)
     name       = db.Column(db.String(100), nullable=False, default="My Board")
+    user_token = db.Column(db.String(36), nullable=False, index=True, default="")
     created_at = db.Column(db.DateTime, default=_now)
 
     # Cascade deletes gecks (and their todos) when the workspace is removed

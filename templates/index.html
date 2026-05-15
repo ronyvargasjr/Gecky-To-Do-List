@@ -29,6 +29,11 @@
         </li>
         {% endfor %}
       </ul>
+
+      <div class="private-link-section">
+        <p class="private-link-label">🔒 Your private board</p>
+        <button id="copy-link-btn" class="btn-secondary sidebar-btn" title="Copy link to bookmark this board">Copy Link</button>
+      </div>
     </div>
   </aside>
 
@@ -97,5 +102,24 @@
   <!-- drag.js must load before main.js so makeDraggable() is available -->
   <script src="{{ url_for('static', filename='js/drag.js') }}"></script>
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+  <script>
+    (function () {
+      var btn = document.getElementById('copy-link-btn');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        navigator.clipboard.writeText(window.location.href).then(function () {
+          var orig = btn.textContent;
+          btn.textContent = 'Copied!';
+          btn.disabled = true;
+          setTimeout(function () {
+            btn.textContent = orig;
+            btn.disabled = false;
+          }, 2000);
+        });
+      });
+    })();
+  </script>
 </body>
+</html>
 </html>

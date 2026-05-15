@@ -30,18 +30,27 @@ def create_app(config_class: type = Config) -> Flask:
     # ── Database bootstrap ─────────────────────────────────────────────────────
     with app.app_context():
         db.create_all()
-        _seed_default_workspace()
+        _migrate_add_user_token()
 
     return app
 
 
-def _seed_default_workspace() -> None:
-    """Insert a default workspace on first run so the UI is never empty."""
-    from models.database import Workspace  # local import avoids circular refs
+def _migrate_add_user_token() -> None:
+    """Add user_token column to workspaces if it doesn't exist (one-time migration)."""
+    from sqlalchemy import text
 
-    if Workspace.query.count() == 0:
-        db.session.add(Workspace(name="My Board"))
-        db.session.commit()
+    with db.engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(text("PRAGMA table_info(workspaces)"))]
+        if "user_token" not in cols:
+            conn.execute(
+                text("ALTER TABLE workspaces ADD COLUMN user_token VARCHAR(36) NOT NULL DEFAULT ''")
+            )
+            conn.commit()
+
+
+def _seed_default_workspace() -> None:
+    """No-op: workspaces are created per-user token, not at startup."""
+    pass
 
 
 if __name__ == "__main__":

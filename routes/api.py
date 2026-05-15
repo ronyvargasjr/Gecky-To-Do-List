@@ -21,10 +21,24 @@ Endpoints:
   AI
     POST   /api/ai/generate
 """
+import uuid
+
 from flask import Blueprint, abort, jsonify, request
 
 from models.database import Geck, Todo, Workspace, db
 from services.ai_agent import generate_tasks
+
+
+# ── Token helper ──────────────────────────────────────────────────────────────
+
+def _get_token() -> str:
+    """Return the gecky_token cookie value or abort 403 if missing/invalid."""
+    token = request.cookies.get("gecky_token", "")
+    try:
+        uuid.UUID(token)
+    except (ValueError, AttributeError):
+        abort(403)
+    return token
 
 api_bp = Blueprint("api", __name__, url_prefix="/api")
 
@@ -33,18 +47,20 @@ api_bp = Blueprint("api", __name__, url_prefix="/api")
 
 @api_bp.route("/workspaces", methods=["GET"])
 def get_workspaces():
-    workspaces = Workspace.query.all()
+    token = _get_token()
+    workspaces = Workspace.query.filter_by(user_token=token).all()
     return jsonify([w.to_dict() for w in workspaces])
 
 
 @api_bp.route("/workspaces", methods=["POST"])
 def create_workspace():
+    token = _get_token()
     data = request.get_json(silent=True) or {}
     name = str(data.get("name", "")).strip()
     if not name:
         return jsonify({"error": "name is required"}), 400
 
-    workspace = Workspace(name=name)
+    workspace = Workspace(name=name, user_token=token)
     db.session.add(workspace)
     db.session.commit()
     return jsonify(workspace.to_dict()), 201
@@ -52,7 +68,10 @@ def create_workspace():
 
 @api_bp.route("/workspaces/<int:workspace_id>", methods=["DELETE"])
 def delete_workspace(workspace_id):
+    token = _get_token()
     workspace = db.get_or_404(Workspace, workspace_id)
+    if workspace.user_token != token:
+        abort(403)
     db.session.delete(workspace)
     db.session.commit()
     return jsonify({"message": "Workspace deleted"}), 200
@@ -62,6 +81,7 @@ def delete_workspace(workspace_id):
 
 @api_bp.route("/gecks", methods=["POST"])
 def create_geck():
+    token = _get_token()
     data = request.get_json(silent=True) or {}
     workspace_id = data.get("workspace_id")
     title = str(data.get("title", "")).strip()
@@ -69,8 +89,9 @@ def create_geck():
     if not workspace_id or not title:
         return jsonify({"error": "workspace_id and title are required"}), 400
 
-    # Validate workspace exists
-    db.get_or_404(Workspace, workspace_id)
+    workspace = db.get_or_404(Workspace, workspace_id)
+    if workspace.user_token != token:
+        abort(403)
 
     geck = Geck(
         workspace_id=workspace_id,
@@ -86,14 +107,20 @@ def create_geck():
 
 @api_bp.route("/gecks/<int:workspace_id>", methods=["GET"])
 def get_gecks(workspace_id):
-    db.get_or_404(Workspace, workspace_id)
+    token = _get_token()
+    workspace = db.get_or_404(Workspace, workspace_id)
+    if workspace.user_token != token:
+        abort(403)
     gecks = Geck.query.filter_by(workspace_id=workspace_id).all()
     return jsonify([g.to_dict() for g in gecks])
 
 
 @api_bp.route("/gecks/<int:geck_id>", methods=["PUT"])
 def update_geck(geck_id):
+    token = _get_token()
     geck = db.get_or_404(Geck, geck_id)
+    if geck.workspace.user_token != token:
+        abort(403)
     data = request.get_json(silent=True) or {}
 
     if "title" in data:
@@ -117,7 +144,10 @@ def update_geck(geck_id):
 
 @api_bp.route("/gecks/<int:geck_id>", methods=["DELETE"])
 def delete_geck(geck_id):
+    token = _get_token()
     geck = db.get_or_404(Geck, geck_id)
+    if geck.workspace.user_token != token:
+        abort(403)
     db.session.delete(geck)
     db.session.commit()
     return jsonify({"message": "Geck deleted"}), 200
@@ -127,7 +157,10 @@ def delete_geck(geck_id):
 
 @api_bp.route("/gecks/<int:geck_id>/todos", methods=["POST"])
 def create_todo(geck_id):
-    db.get_or_404(Geck, geck_id)
+    token = _get_token()
+    geck = db.get_or_404(Geck, geck_id)
+    if geck.workspace.user_token != token:
+        abort(403)
     data = request.get_json(silent=True) or {}
     text = str(data.get("text", "")).strip()
     if not text:
@@ -142,7 +175,10 @@ def create_todo(geck_id):
 
 @api_bp.route("/todos/<int:todo_id>", methods=["PUT"])
 def update_todo(todo_id):
+    token = _get_token()
     todo = db.get_or_404(Todo, todo_id)
+    if todo.geck.workspace.user_token != token:
+        abort(403)
     data = request.get_json(silent=True) or {}
 
     if "text" in data:
@@ -160,7 +196,10 @@ def update_todo(todo_id):
 
 @api_bp.route("/todos/<int:todo_id>", methods=["DELETE"])
 def delete_todo(todo_id):
+    token = _get_token()
     todo = db.get_or_404(Todo, todo_id)
+    if todo.geck.workspace.user_token != token:
+        abort(403)
     db.session.delete(todo)
     db.session.commit()
     return jsonify({"message": "Todo deleted"}), 200
@@ -170,6 +209,7 @@ def delete_todo(todo_id):
 
 @api_bp.route("/ai/generate", methods=["POST"])
 def ai_generate():
+    token = _get_token()
     data = request.get_json(silent=True) or {}
     prompt = str(data.get("prompt", "")).strip()
     workspace_id = data.get("workspace_id")
@@ -179,7 +219,9 @@ def ai_generate():
     if not workspace_id:
         return jsonify({"error": "workspace_id is required"}), 400
 
-    db.get_or_404(Workspace, workspace_id)
+    workspace = db.get_or_404(Workspace, workspace_id)
+    if workspace.user_token != token:
+        abort(403)
 
     task_titles = generate_tasks(prompt)
     created: list[Geck] = []
